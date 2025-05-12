@@ -2,11 +2,12 @@ import User from "../../models/user.model";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-export const signup = async ({ username, email, password }: { username: string; email: string; password: string }) => {
+export const signup = async ({ username, email, password, bio, profilePicture }: { username: string; email: string; password: string, bio: string, profilePicture: string }) => {
     const exists = await User.findOne({ $or: [{ username }, { email }] });
     if (exists) throw new Error("User already exists");
-    const user = await User.create({ username, email, password });
-    return { id: user._id, username: user.username, email: user.email };
+    const user = await User.create({ username, email, password, bio, profilePicture });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
+    return {token, user: { username: user.username, email: user.email, bio: user.bio, profilePicture: user.profilePicture }};
 }
 
 export const login = async ({ email, password }: { email: string; password: string }) => {
@@ -16,5 +17,5 @@ export const login = async ({ email, password }: { email: string; password: stri
     if(!isMatch) throw new Error("Invalid credentials");
     
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
-    return { token, user: { username: user.username, email: user.email } };
+    return { token, user: { username: user.username, email: user.email, bio: user.bio, profilePicture: user.profilePicture } };
 }
