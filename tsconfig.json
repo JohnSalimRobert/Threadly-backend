@@ -8,7 +8,15 @@
       "esModuleInterop": true,
       "forceConsistentCasingInFileNames": true,
       "skipLibCheck": true,
-      "allowSyntheticDefaultImports": true
-    }
+      "allowSyntheticDefaultImports": true,
+      "typeRoots": ["./node_modules/@types", "./src/types", "./src/types/express"],
+      "baseUrl": "./",
+      "paths": {
+        "@/*": ["src/*"],
+        "@types/*": ["src/types/*"],
+        "@express/*": ["src/types/express/*"]
+      },
+    },
+    "include": ["src", "src/types", "src/types/express"], 
   }
   

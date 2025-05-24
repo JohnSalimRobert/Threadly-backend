@@ -11,4 +11,19 @@ const commentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+commentSchema.virtual('replies', {
+  ref: 'Comment',
+  localField: '_id',
+  foreignField: 'parentComment',
+  justOne: false
+});
+
+commentSchema.set('toJSON', { virtuals: true });
+commentSchema.set('toObject', { virtuals: true });
+
+commentSchema.index({ post: 1, createdAt: -1 });         // for fetching comments under a post
+commentSchema.index({ parentComment: 1 });               // for fetching replies
+commentSchema.index({ post: 1, parentComment: 1 });      // compound index, best for hierarchical comments
+
+
 export default mongoose.model('Comment', commentSchema);

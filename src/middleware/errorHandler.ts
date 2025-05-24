@@ -1,14 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
+import { AppError } from '../utils/AppError';
 
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack);
-  // Check if the error is an instance of Error, and provide a response
-  const statusCode = err.status || 500;
-  const message = err.message || 'Internal Server Error';
+  const statusCode = err instanceof AppError ? err.statusCode : 500;
+  const code = err instanceof AppError ? err.code : 'SERVER_ERROR';
+  const message = err.message || 'Something went wrong';
 
   res.status(statusCode).json({
-    status: 'error',
-    message: message,
-    ...(process.env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
+    success: false,
+    message,
+    error: {
+      code,
+      details: err.details || []
+    }
   });
 };
