@@ -31,27 +31,6 @@ export const createPost = async (req: AuthRequest, res: Response, next: NextFunc
   }
 };
 
-// export const getPost = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { postId } = req.params;
-
-//     const post = await postService.getPostById(postId);
-
-//     // If the post is not found, throw an error
-//     if (!post) {
-//       throw new AppError('Post not found', 404, 'POST_NOT_FOUND');
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Post fetched successfully',
-//       data: post
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 
 export const getPosts = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

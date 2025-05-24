@@ -6,10 +6,9 @@ import { Server } from 'socket.io';
 //routes
 import authRoutes from './modules/auth/auth.route';
 import postRoutes from './modules/post/post.route';
+import userRoutes from './modules/user/user.route';
 import { errorHandler } from './middleware/errorHandler';
 import { authenticate } from './middleware/authenticate';
-import { authenticateSocket } from './middleware/authenticateSocket';
-import { authSocket, likeSocketHandler } from './socket/like.socket';
 import { initSocket } from './lib/socket';
 
 const app = express();
@@ -34,6 +33,7 @@ app.use(morgan('dev'));
 app.use('/api/v1/auth', authRoutes)
 
 app.use('/api/v1/post', authenticate ,postRoutes)
+app.use('/api/v1/user', authenticate ,userRoutes)
 
 app.use(errorHandler);
 

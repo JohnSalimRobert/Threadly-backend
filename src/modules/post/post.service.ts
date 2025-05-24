@@ -28,7 +28,7 @@ export const createPost = async ({ author, caption, images }: CreatePostInput) =
       };
     }
 
-    // Check if the user exists (optional, if you want to check for author validity)
+    // Check if the user exists
     const authorExists = await userModel.findById(author);
     if (!authorExists) {
       return {
@@ -37,24 +37,45 @@ export const createPost = async ({ author, caption, images }: CreatePostInput) =
       };
     }
 
-    // Create a new post
+    // Create and save the new post
     const post = new postModel({
       author,
       caption,
       images
     });
-
-    // Save post
     await post.save();
-    // Return the created post
+
+    // Populate the author (like in fetchAllPosts)
+    const populatedPost = await postModel
+      .findById(post._id)
+      .populate('author', 'username profilePicture')
+      .lean();
+
+    // Fetch comments for this post
+    const comments = await commentModel.find({
+      post: post._id,
+      parentComment: null
+    })
+      .populate('author', 'username profilePicture')
+      .populate({
+        path: 'replies',
+        populate: { path: 'author', select: 'username profilePicture' }
+      })
+      .lean();
+
+    // Assemble final enriched post
+    const enrichedPost = {
+      ...populatedPost,
+      isLikedByUser: false, // default for a fresh post
+      comments: comments || []
+    };
+
     return {
       success: true,
       message: 'Post created successfully',
-      data: post
+      data: enrichedPost
     };
-
   } catch (error) {
-    // If something goes wrong, handle the error with an appropriate message
     throw new AppError('Error creating post', 500, 'POST_CREATION_ERROR');
   }
 };
@@ -158,7 +179,7 @@ export const likePost = async ({ postId, userId }: { postId: string; userId: str
     return {
       success: true,
       message: 'Post liked successfully',
-      data: {...post.toObject(), isLikedByUser: true}, // Update the like status
+      data: { ...post.toObject(), isLikedByUser: true }, // Update the like status
     };
   }
 
@@ -183,7 +204,7 @@ export const getPostComments = async (postId: string) => {
 };
 
 export const getCommentReplies = async (commentId: string) => {
-  if(!commentId) {
+  if (!commentId) {
     throw new AppError('Comment ID is required', 400, 'COMMENT_ID_REQUIRED');
   }
 
@@ -191,4 +212,71 @@ export const getCommentReplies = async (commentId: string) => {
     .populate('author', 'username avatar') // adjust the fields as needed
     .sort({ createdAt: -1 }).lean(); // newest replies first
   return comments;
+}
+
+export const likeComment = async ({ commentId, userId }: { commentId: string; userId: string }) => {
+  if (!commentId || !userId) {
+    return { error: "Comment ID and User ID are required", statusCode: 400, code: "LIKE_INPUT_ERROR" }
+  }
+  const comment = await commentModel.findById(commentId).select('-author');
+  if (!comment) {
+    return { error: "Comment not found", statusCode: 404, code: "COMMENT_NOT_FOUND" }
+  }
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
+  const alreadyLiked = comment.likes.includes(userObjectId);
+  if (alreadyLiked) {
+    // UNLIKE: Remove user ID from likes array
+    comment.likes = comment.likes.filter((id) => !id.equals(userObjectId));
+    await comment.save();
+    return {
+      success: true,
+      message: 'Comment unliked successfully',
+      data: {
+        ...comment.toObject(),
+        isLikedByUser: false, // Update the like status
+      },
+    };
+  } else {
+    // LIKE: Add user ID to likes array
+    comment.likes.push(userObjectId);
+    await comment.save();
+    return {
+      success: true,
+      message: 'Comment liked successfully',
+      data: { ...comment.toObject(), isLikedByUser: true }, // Update the like status
+    };
+  }
+}
+
+export const createComment = async ({ postId, userId, content, parentId }: { postId: string; userId: string; content: string; parentId?: string }) => {
+  if (!postId || !userId || !content) {
+    return { error: "Post ID, User ID and content are required", statusCode: 400, code: "COMMENT_INPUT_ERROR" }
+  };
+
+  const comment = await commentModel.create({
+    post: new mongoose.Types.ObjectId(postId),
+    author: new mongoose.Types.ObjectId(userId),
+    content: content,
+    likes: [],
+    parentComment: parentId ? new mongoose.Types.ObjectId(parentId) : null
+  })
+  if (!comment) {
+    return { error: "Error creating comment", statusCode: 500, code: "COMMENT_CREATION_ERROR" }
+  }
+  // Populate the author field
+  const populatedComment = await commentModel.findById(!parentId ? comment._id : parentId)
+    .populate('author', 'username profilePicture')
+    .populate({
+      path: 'replies',
+      populate: { path: 'author', select: 'username profilePicture' } // populate reply authors
+    }).lean();
+  if (!populatedComment) {
+    return { error: "Comment not found after creation", statusCode: 404, code: "COMMENT_NOT_FOUND" }
+  }
+  return {
+    success: true,
+    message: 'Comment created successfully',
+    data: populatedComment
+  }
 }
